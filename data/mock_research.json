@@ -1,0 +1,38 @@
+{
+  "_comment": "Offline pytest stubs only. CRM stores company + industry + notes. Detailed intel always comes from Tavily + Firecrawl (MOCK_MODE=FALSE).",
+  "by_company": {
+    "Stripe": {
+      "company_overview": "CRM minimum data only — run Research for live Tavily + Firecrawl intel on Stripe.",
+      "recent_news": "",
+      "growth_signals": [],
+      "tech_stack": [],
+      "sources": [],
+      "search_snippets": []
+    },
+    "Notion": {
+      "company_overview": "CRM minimum data only — run Research for live Tavily + Firecrawl intel on Notion.",
+      "recent_news": "",
+      "growth_signals": [],
+      "tech_stack": [],
+      "sources": [],
+      "search_snippets": []
+    },
+    "HubSpot": {
+      "company_overview": "CRM minimum data only — run Research for live Tavily + Firecrawl intel on HubSpot.",
+      "recent_news": "",
+      "growth_signals": [],
+      "tech_stack": [],
+      "sources": [],
+      "search_snippets": []
+    },
+    "Shopify": {
+      "company_overview": "CRM minimum data only — run Research for live Tavily + Firecrawl intel on Shopify.",
+      "recent_news": "",
+      "growth_signals": [],
+      "tech_stack": [],
+      "sources": [],
+      "search_snippets": []
+    }
+  },
+  "by_website": {}
+}
