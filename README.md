@@ -116,7 +116,6 @@ python -m app.mcp_server
 scripts\run_mcp_server.bat
 ```
 
-**Cursor setup:** `.cursor/mcp.json` is pre-configured. Open **Cursor Settings → MCP** and enable the `leadpilot` server. Tools available:
 
 | Tool | Purpose |
 |---|---|
