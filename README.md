@@ -4,15 +4,7 @@
 
 Capstone project for the **Google 5-Day AI Agents Intensive 2026** — Track: *Agents for Business*.
 
-## Submission Overview
 
-This README is structured to match submission expectations:
-
-- **Problem statement** → see [Problem Statement](#problem-statement)
-- **Solution** → see [Solution Approach](#solution-approach)
-- **Architecture** → see [Architecture](#architecture) (includes diagrams)
-- **Setup and run instructions** → see [Setup & Run Instructions](#setup--run-instructions)
-- **Diagrams/images** → see [Architecture](#architecture)
 
 ## Problem Statement
 
