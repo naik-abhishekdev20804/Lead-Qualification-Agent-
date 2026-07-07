@@ -217,6 +217,4 @@ The **Approve & send** button can send a real email through Gmail API, routed to
 - **Lower cost per qualified lead** — research that took a rep 20 minutes runs automatically.
 - **Human stays in control** — no outreach leaves the building without approval.
 
-## License
 
-MIT
