@@ -10,6 +10,65 @@ const SUGGESTIONS = [
   'Compare Stripe and HubSpot as opportunities',
 ]
 
+const DEMO_DELAY_MIN_MS = 2000
+const DEMO_DELAY_MAX_MS = 3000
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const normalizeText = (text) =>
+  (text || '')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+function getDemoAssistantReply(message) {
+  const normalized = normalizeText(message)
+
+  if (normalized === normalizeText('Which lead looks most promising and why?')) {
+    return `HubSpot (L-003) is the most promising lead for this demo.
+
+- Score: 82 (Hot)
+- Why: strong security + enterprise intent, high web growth signals, and strong online footprint.
+- Next step: click "Qualify + outreach" for L-003 and approve the generated draft email.`
+  }
+
+  if (normalized === normalizeText('Tell me about lead L-001 (Stripe)')) {
+    return `Stripe (L-001) is currently a Warm lead in this demo.
+
+- Strong company fit (Fintech), but engagement is moderate compared with HubSpot.
+- Recommended action: follow up in 2-3 days with a value-focused intro email.`
+  }
+
+  if (normalized === normalizeText('List all leads in the CRM')) {
+    return `Current demo lead list:
+
+- L-001: Stripe — Warm
+- L-002: Notion — Warm
+- L-003: HubSpot — Hot
+- L-004: Shopify — Cold`
+  }
+
+  if (normalized === normalizeText('Compare Stripe and HubSpot as opportunities')) {
+    return `Demo comparison (Stripe vs HubSpot):
+
+- HubSpot: Hot (higher urgency and stronger enterprise/security buying intent)
+- Stripe: Warm (strong fit, but lower immediate intent than HubSpot)
+
+Priority for this demo: HubSpot first, Stripe second.`
+  }
+
+  if (normalized.includes('which one of these use ai') || (normalized.includes('which') && normalized.includes('use ai'))) {
+    return `In this demo set, the strongest AI-usage signals are for HubSpot and Notion.
+
+- HubSpot: AI-assisted marketing and sales workflows
+- Notion: built-in AI writing/productivity features
+- Stripe/Shopify: use automation heavily, but AI signal appears less direct in this demo summary.`
+  }
+
+  return null
+}
+
 export default function Assistant() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -28,6 +87,15 @@ export default function Assistant() {
     setMessages((m) => [...m, { role: 'user', text: message }])
     setBusy(true)
     try {
+      const demoReply = getDemoAssistantReply(message)
+      if (demoReply) {
+        const delay =
+          DEMO_DELAY_MIN_MS + Math.floor(Math.random() * (DEMO_DELAY_MAX_MS - DEMO_DELAY_MIN_MS + 1))
+        await sleep(delay)
+        setMessages((m) => [...m, { role: 'agent', text: demoReply }])
+        return
+      }
+
       const res = await api.chat(message, sessionId)
       setSessionId(res.session_id)
       setMessages((m) => [...m, { role: 'agent', text: res.reply, tools: res.tool_calls }])

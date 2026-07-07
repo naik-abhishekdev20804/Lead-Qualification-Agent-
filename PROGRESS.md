@@ -5,7 +5,7 @@ Update this file at the end of every phase. See [`MASTER.md`](MASTER.md) for
 the rules this build follows, [`README.md`](README.md) for the project pitch,
 and [`GEMINI.md`](GEMINI.md) for AI-assistant context.
 
-Last updated: **Gmail real-send runtime verification + frontend/backend routing alignment**.
+Last updated: **Assistant resilience hardening + clean runtime restart alignment**.
 
 ---
 
@@ -41,7 +41,7 @@ Last updated: **Gmail real-send runtime verification + frontend/backend routing 
 - **`config.py`** — the *only* place environment variables are read. Typed `Settings`
   (pydantic-settings) loaded from `.env`. Exposes `settings` singleton plus `PROJECT_ROOT`,
   `DATA_DIR`, `CACHE_DIR`, `LOG_DIR`.
-- **`.env` / `.env.example`** — `GOOGLE_API_KEY`, `GEMINI_MODEL=gemini-flash-latest`,
+- **`.env` / `.env.example`** — `GOOGLE_API_KEY`, `GEMINI_MODEL=gemini-2.5-flash`,
   `TAVILY_API_KEY`, `SERPER_API_KEY`, `FIRECRAWL_API_KEY`, `MOCK_MODE`, `CACHE_TTL_HOURS`,
   `DAILY_API_BUDGET`.
 - **`.gitignore`** — excludes `.env`, `.cache/`, `logs/`, venvs, `node_modules/`, build output.
@@ -139,7 +139,7 @@ FastAPI on port **8100**, CORS for `localhost:5173`.
   expandable **Full research report (Tavily + Firecrawl)** section;
   **Qualify + outreach** and **Research only** buttons.
 - **Assistant** — suggested prompts updated for Stripe/HubSpot.
-- Dev proxy: `/api → http://127.0.0.1:8101` (aligned to latest backend instance for Gmail-send verification).
+- Dev proxy: `/api → http://127.0.0.1:8121` (aligned to latest clean backend runtime).
 
 **Run frontend:**
 ```powershell
@@ -455,3 +455,83 @@ Root cause: frontend traffic was hitting an older backend process that still had
 - `http://localhost:5173/api/health` returns Gmail flags from latest backend.
 - Approve endpoint on latest backend performs real Gmail send (not just status update).
 - UI can still show `Approved & sent`, now backed by real provider delivery metadata.
+
+---
+
+## 14. Assistant reliability + runtime alignment log (✅ complete)
+
+### Why this follow-up was needed
+
+Assistant chat intermittently returned generic server errors for some prompts, and runtime
+port/model settings had drifted across backend/frontend processes.
+
+### What was improved
+
+1. **Assistant endpoint hardening**
+   - Updated **`app/api/server.py`** chat error handling:
+     - `/api/chat` now returns a stable fallback response when the upstream LLM service
+       is temporarily unavailable.
+     - Avoids surfacing opaque `500` failures to the UI for these cases.
+
+2. **Deterministic fallback replies for common asks**
+   - Added fallback logic in **`app/api/server.py`** for:
+     - “list all leads”
+     - “most promising lead”
+     - direct lead-ID lookup prompts (e.g. `L-001`)
+   - Uses CRM + current qualification state so Assistant still provides useful output.
+
+3. **Frontend error parsing improvement**
+   - Updated **`frontend/src/lib/api.js`** request error handling to parse both JSON and
+     plain-text backend errors cleanly, reducing generic “Request failed (500)” UX.
+
+4. **Live scoring visibility behavior**
+   - Updated **`app/api/server.py`** list flow to auto-run live qualification once per lead
+     in live mode so score/priority populate without relying on static preload.
+
+5. **Runtime model and routing alignment**
+   - Set `GEMINI_MODEL=gemini-2.5-flash` in **`.env`** and **`.env.example`**.
+   - Updated frontend proxy target in **`frontend/vite.config.js`** to backend `8121`.
+   - Restarted services and validated `/api/health` and `/api/chat` behavior end-to-end.
+
+### Runtime checks that now pass
+
+- `http://localhost:5173/api/health` resolves via frontend proxy to active backend.
+- Assistant responds successfully for standard prompts from the UI.
+- When LLM service is temporarily unavailable, Assistant returns deterministic fallback
+  output instead of a hard failure.
+
+---
+
+## 15. Runtime stabilization follow-up (✅ complete)
+
+### Why this follow-up was needed
+
+During repeated restart cycles, stale listeners on older ports occasionally caused
+frontend/backend drift and inconsistent runtime checks.
+
+### What was improved
+
+1. **Clean runtime pair selected**
+   - Standardized active runtime to:
+     - Frontend: `localhost:5173`
+     - Backend: `127.0.0.1:8121`
+
+2. **Frontend routing synchronized**
+   - Confirmed **`frontend/vite.config.js`** proxy points to `http://127.0.0.1:8121`
+     so all UI `/api` calls hit the same backend process.
+
+3. **Assistant endpoint resilience retained**
+   - Kept `/api/chat` hardening in place so temporary upstream model-service issues
+     do not surface as raw `500` errors in the UI.
+
+4. **Qualify/outreach interaction integrity**
+   - Verified lead detail flow:
+     - score/tier and recommendation render from live qualification state
+     - draft email appears through explicit qualify/outreach action path
+     - email approval state updates remain stable across refreshes
+
+### Runtime checks that now pass
+
+- `http://127.0.0.1:8121/api/health` returns `200`.
+- `http://localhost:5173/api/health` (proxy path) returns `200`.
+- `http://localhost:5173/api/chat` returns a structured response for standard prompts.

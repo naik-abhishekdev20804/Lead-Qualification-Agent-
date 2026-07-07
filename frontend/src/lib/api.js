@@ -6,8 +6,17 @@ async function request(path, options = {}) {
     ...options,
   })
   if (!res.ok) {
-    const detail = await res.json().catch(() => ({}))
-    throw new Error(detail.detail || `Request failed (${res.status})`)
+    const raw = await res.text().catch(() => '')
+    let message = `Request failed (${res.status})`
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        message = parsed.detail || parsed.message || message
+      } catch {
+        message = raw.trim() || message
+      }
+    }
+    throw new Error(message)
   }
   return res.json()
 }

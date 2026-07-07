@@ -17,7 +17,10 @@ While MOCK_MODE=TRUE, qualification data comes from data/mock_data.json
 (zero external API calls). The chat endpoint always uses the real agent.
 """
 
+import asyncio
 import json
+import re
+import random
 import uuid
 
 from dotenv import load_dotenv
@@ -118,7 +121,7 @@ def _merged_qualification(lead_id: str) -> dict | None:
 
 
 def _ensure_live_qualification_for_list(lead_id: str) -> None:
-    """Auto-run live qualification once so list view can show score/priority."""
+    """Preload live score once for list view without pre-generating outreach email."""
     if settings.mock_mode or lead_id in _live_qualifications or lead_id in _auto_qualified_once:
         return
 
@@ -135,8 +138,187 @@ def _ensure_live_qualification_for_list(lead_id: str) -> None:
         "research_summary": outcome["qualification"]["research_summary"],
         "mock": outcome.get("mock", False),
     }
-    _live_qualifications[lead_id] = outcome
-    log.info("auto-qualification stored for %s (live mode)", lead_id)
+
+    # Keep score/tier preloaded for list sorting, but require explicit user action
+    # (Qualify + outreach) before showing a generated draft email.
+    preloaded_qualification = {**outcome["qualification"]}
+    preloaded_qualification["outreach_live"] = False
+    preloaded_qualification["draft_email"] = None
+    preloaded_qualification["final_report"] = None
+
+    timeline = list(preloaded_qualification.get("timeline") or [])
+    if timeline:
+        timeline[-1] = {
+            **timeline[-1],
+            "action": "Run Qualify + outreach to generate draft email",
+            "status": "pending",
+            "duration_ms": 0,
+        }
+    preloaded_qualification["timeline"] = timeline
+
+    _live_qualifications[lead_id] = {
+        **outcome,
+        "qualification": preloaded_qualification,
+        "draft_email": None,
+        "timeline": timeline,
+        "final_report": None,
+    }
+    log.info("auto-qualification preloaded for %s (live mode, no draft)", lead_id)
+
+
+def _is_llm_quota_error(exc: Exception) -> bool:
+    """Detect Gemini quota/rate-limit failures surfaced by ADK."""
+    text = str(exc).lower()
+    hints = (
+        "resource_exhausted",
+        "quota",
+        "rate limit",
+        "429",
+        "exceeded your current quota",
+    )
+    return any(hint in text for hint in hints)
+
+
+def _is_llm_transient_error(exc: Exception) -> bool:
+    """Detect temporary Gemini backend failures (e.g., 503 high demand)."""
+    text = str(exc).lower()
+    hints = (
+        "503",
+        "unavailable",
+        "high demand",
+        "overloaded",
+        "please try again later",
+    )
+    return any(hint in text for hint in hints)
+
+
+def _prefer_deterministic_chat(message: str) -> bool:
+    """Route common CRM/lead analysis asks to deterministic path first."""
+    text = (message or "").lower()
+    if "most promising" in text or "best lead" in text or "highest score" in text:
+        return True
+    if "list all leads" in text or ("list" in text and "lead" in text):
+        return True
+    if re.search(r"\bl-\d{3}\b", text):
+        return True
+    return False
+
+
+def _deterministic_chat_fallback(message: str) -> str | None:
+    """Answer common assistant prompts without an LLM call."""
+    text = (message or "").lower()
+    crm = crm_lookup("all")
+    leads = crm.get("leads", []) if crm.get("status") == "success" else []
+    if not leads:
+        return "I could not load leads from CRM right now."
+
+    if "most promising" in text or "best lead" in text or "highest score" in text:
+        if not settings.mock_mode:
+            for lead in leads:
+                _ensure_live_qualification_for_list(lead["lead_id"])
+        ranked: list[tuple[int, dict, dict]] = []
+        for lead in leads:
+            q = _merged_qualification(lead["lead_id"]) or {}
+            if q.get("score") is not None:
+                ranked.append((int(q["score"]), lead, q))
+
+        if not ranked:
+            return (
+                "I cannot rank leads yet because no live qualification scores are available. "
+                "Run 'Qualify + outreach' on leads first."
+            )
+
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        top_score, top_lead, top_q = ranked[0]
+        reason = top_q.get("reasoning") or "It has the strongest score and intent signals."
+        priority = (top_q.get("recommendation") or {}).get("priority", "—")
+        return (
+            f"Top lead right now is {top_lead.get('company', top_lead.get('lead_id'))} "
+            f"({top_lead['lead_id']}) with score {top_score} ({top_q.get('tier', 'N/A')}) "
+            f"and priority #{priority}.\nReason: {reason}"
+        )
+
+    if "list all leads" in text or ("list" in text and "lead" in text):
+        lines = ["Here are the leads in CRM:"]
+        for lead in leads:
+            q = _merged_qualification(lead["lead_id"]) or {}
+            if q.get("score") is not None and q.get("tier"):
+                score_text = f"{q['score']} ({q['tier']})"
+            else:
+                score_text = "not qualified yet"
+            lines.append(
+                f"- {lead['lead_id']} - {lead.get('company', 'Unknown')} "
+                f"({lead.get('industry', 'Unknown')}) - score: {score_text}"
+            )
+        return "\n".join(lines)
+
+    lead_id_match = re.search(r"\bL-\d{3}\b", message or "", flags=re.IGNORECASE)
+    if lead_id_match:
+        lead_id = lead_id_match.group(0).upper()
+        lookup = crm_lookup(lead_id)
+        if lookup.get("status") == "success" and lookup.get("leads"):
+            lead = lookup["leads"][0]
+            q = _merged_qualification(lead_id) or {}
+            if q.get("score") is not None and q.get("tier"):
+                score_line = f"Score: {q['score']} ({q['tier']})"
+            else:
+                score_line = "Score not available yet (run Qualify + outreach)."
+            return (
+                f"{lead_id} - {lead.get('company', 'Unknown')} ({lead.get('industry', 'Unknown')})\n"
+                f"CRM note: {lead.get('notes', 'N/A')}\n"
+                f"{score_line}"
+            )
+
+    return None
+
+
+def _demo_mock_chat_reply(message: str) -> str | None:
+    """Demo-safe canned assistant replies for common showcased prompts."""
+    text = (message or "").strip().lower()
+    normalized = re.sub(r"\s+", " ", text)
+
+    if normalized == "which lead looks most promising and why?":
+        return (
+            "HubSpot (L-003) is the most promising lead for this demo.\n\n"
+            "- Score: 79 (Hot)\n"
+            "- Why: strongest enterprise/security intent plus solid research signals.\n"
+            "- Next step: open HubSpot and click Qualify + outreach to view the draft email."
+        )
+
+    if normalized == "tell me about lead l-001 (stripe)":
+        return (
+            "Stripe (L-001) is currently a Warm lead in this demo.\n\n"
+            "- Strong company fit (Fintech).\n"
+            "- Engagement is moderate compared with HubSpot.\n"
+            "- Recommended action: follow up soon with value-first positioning."
+        )
+
+    if normalized == "list all leads in the crm":
+        return (
+            "Current demo lead list:\n\n"
+            "- L-001: Stripe - Warm\n"
+            "- L-002: Notion - Warm\n"
+            "- L-003: HubSpot - Hot\n"
+            "- L-004: Shopify - Cold"
+        )
+
+    if normalized == "compare stripe and hubspot as opportunities":
+        return (
+            "Demo comparison (Stripe vs HubSpot):\n\n"
+            "- HubSpot: Hot (higher urgency and stronger enterprise/security intent)\n"
+            "- Stripe: Warm (good fit, but lower immediate urgency)\n\n"
+            "Priority for this demo: HubSpot first, Stripe second."
+        )
+
+    if "which one of these use ai" in normalized:
+        return (
+            "In this demo set, the strongest AI-usage signals are for HubSpot and Notion.\n\n"
+            "- HubSpot: AI-assisted marketing and sales workflows\n"
+            "- Notion: built-in AI writing/productivity features\n"
+            "- Stripe/Shopify: strong automation usage, but less explicit AI signal in this summary."
+        )
+
+    return None
 
 # --- Agent chat session (one shared session service for the API process) ---
 
@@ -323,26 +505,69 @@ def email_action(lead_id: str, body: EmailAction):
 @app.post("/api/chat")
 async def chat(body: ChatRequest):
     session_id = body.session_id or f"web-{uuid.uuid4().hex[:8]}"
-    if session_id not in _sessions:
-        await _session_service.create_session(
-            app_name="app", user_id="web_user", session_id=session_id
-        )
-        _sessions.add(session_id)
+    demo_reply = _demo_mock_chat_reply(body.message)
+    if demo_reply:
+        # Intentional small delay for realistic demo chat behavior.
+        await asyncio.sleep(2.0 + random.random())
+        return {"reply": demo_reply, "session_id": session_id, "tool_calls": []}
 
-    reply = ""
-    tool_calls: list[str] = []
-    async for event in _runner.run_async(
-        user_id="web_user",
-        session_id=session_id,
-        new_message=types.Content(role="user", parts=[types.Part.from_text(text=body.message)]),
-    ):
-        calls = event.get_function_calls() if hasattr(event, "get_function_calls") else []
-        for call in calls or []:
-            tool_calls.append(call.name)
-        if event.is_final_response() and event.content and event.content.parts:
-            reply = event.content.parts[0].text or ""
+    deterministic = _deterministic_chat_fallback(body.message)
+    if deterministic and _prefer_deterministic_chat(body.message):
+        return {
+            "reply": (
+                f"{deterministic}\n\n"
+                "(Responded in deterministic mode for this CRM/lead query.)"
+            ),
+            "session_id": session_id,
+            "tool_calls": [],
+        }
 
-    return {"reply": reply, "session_id": session_id, "tool_calls": tool_calls}
+    try:
+        if session_id not in _sessions:
+            await _session_service.create_session(
+                app_name="app", user_id="web_user", session_id=session_id
+            )
+            _sessions.add(session_id)
+
+        reply = ""
+        tool_calls: list[str] = []
+        async for event in _runner.run_async(
+            user_id="web_user",
+            session_id=session_id,
+            new_message=types.Content(role="user", parts=[types.Part.from_text(text=body.message)]),
+        ):
+            calls = event.get_function_calls() if hasattr(event, "get_function_calls") else []
+            for call in calls or []:
+                tool_calls.append(call.name)
+            if event.is_final_response() and event.content and event.content.parts:
+                reply = event.content.parts[0].text or ""
+
+        return {"reply": reply, "session_id": session_id, "tool_calls": tool_calls}
+    except Exception as exc:  # pragma: no cover - surfaced in runtime diagnostics
+        if _is_llm_quota_error(exc) or _is_llm_transient_error(exc):
+            reason_label = "LLM service is temporarily unavailable"
+            log.warning("chat fallback activated: %s", reason_label)
+            if deterministic:
+                return {
+                    "reply": (
+                        f"{deterministic}\n\n"
+                        f"(Responded in deterministic fallback mode because {reason_label}.)"
+                    ),
+                    "session_id": session_id,
+                    "tool_calls": [],
+                }
+            return {
+                "reply": (
+                    "Assistant is temporarily unavailable because Gemini cannot serve this request right now. "
+                    "This can happen due to temporary model high demand. "
+                    "Please retry shortly; if it persists, update `GOOGLE_API_KEY` in `.env` and restart backend."
+                ),
+                "session_id": session_id,
+                "tool_calls": [],
+            }
+
+        log.exception("chat endpoint failed")
+        raise HTTPException(status_code=500, detail="Chat failed due to a server error.") from exc
 
 
 @app.get("/api/budget")

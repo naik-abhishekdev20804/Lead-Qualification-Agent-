@@ -4,11 +4,21 @@
 
 Capstone project for the **Google 5-Day AI Agents Intensive 2026** — Track: *Agents for Business*.
 
-## The Problem
+## Submission Overview
+
+This README is structured to match submission expectations:
+
+- **Problem statement** → see [Problem Statement](#problem-statement)
+- **Solution** → see [Solution Approach](#solution-approach)
+- **Architecture** → see [Architecture](#architecture) (includes diagrams)
+- **Setup and run instructions** → see [Setup & Run Instructions](#setup--run-instructions)
+- **Diagrams/images** → see [Architecture](#architecture)
+
+## Problem Statement
 
 Sales teams waste hours manually researching every inbound lead: who are they, what does their company do, are they even a fit? Most of that effort is spent on leads that were never worth pursuing. The result is slow follow-up, inconsistent qualification, and missed hot opportunities.
 
-## The Solution
+## Solution Approach
 
 A pipeline of specialized AI agents (built on Google's [Agent Development Kit](https://adk.dev/)) that does the whole job automatically:
 
@@ -16,18 +26,59 @@ A pipeline of specialized AI agents (built on Google's [Agent Development Kit](h
 2. **Qualification Agent** — evaluates fit against a qualification rubric, computes a deterministic lead score, and assigns a tier: **Hot / Warm / Cold** — with the reasoning explained.
 3. **Outreach Agent** — generates a prioritized recommendation, a full report, and a personalized follow-up email draft — which is **never sent without human approval**.
 
+## Architecture
+
+### High-Level System Diagram
+
+```text
+┌─────────────────────────────┐        ┌──────────────────────────────┐
+│   React dashboard (5173)    │──/api──▶│  FastAPI backend (8121)      │
+│   Dashboard / Leads /       │         │  app/api/server.py           │
+│   LeadDetail / Assistant /  │         │  POST /research, /qualify    │
+│   System                    │         │  POST /email (HITL)          │
+└─────────────────────────────┘         │  POST /chat                  │
+                                         └──────────────┬───────────────┘
+                                                        │
+                    ┌───────────────────────────────────┼───────────────────┐
+                    ▼                                   ▼                   ▼
+          data/sample_leads.csv              app/services/           app/agent.py
+          (minimal CRM fields)               research_service.py     root_agent + pipelines
+                    │                                   │
+                    │                          MOCK_MODE=FALSE:
+                    │                          Tavily (search) → Serper fallback
+                    │                          Firecrawl (website analysis)
+                    ▼
+          Deterministic scoring + outreach (no LLM for dashboard buttons)
+          Gemini LLM used by /api/chat assistant and ADK agent orchestration
+```
+
+### Agent Pipeline Diagram
+
+```text
+Research Agent  →  Qualification Agent  →  Outreach Agent
+   (CRM+web)          (score+tier)          (recommendation+draft email)
+```
+
 ## Course Concepts Demonstrated
 
 | Concept | Where |
 |---|---|
 | Multi-agent system | `app/agents/` — 3 specialized agents in a sequential pipeline |
-| MCP server | `app/mcp_server.py` + `app/mcp_tools/` |
+| MCP server | `app/mcp_server/` + `app/mcp_tools/` |
 | Skills | `app/skills/` — qualification rubric, scoring formula, outreach playbook |
 | Security | `app/security/` — PII redaction, prompt-injection screening, audit log, human approval gate |
 | Evaluation | `evaluation/` — ADK eval datasets, LLM-as-judge, tool-trajectory checks |
 | Testing | `tests/` — offline pytest suite for all deterministic code |
 
-## Quick Start
+## Setup & Run Instructions
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- `uv` package manager (`pip install uv`)
+
+### Quick Start
 
 ```bash
 # 1. Install uv (if you don't have it)
@@ -52,7 +103,7 @@ uv run python main.py "Tell me about lead L-001"
 
 ```bash
 # Terminal 1 — backend API
-uv run uvicorn app.api.server:app --port 8100
+uv run uvicorn app.api.server:app --port 8121
 
 # Terminal 2 — React frontend (first time: cd frontend && npm install)
 cd frontend
@@ -127,7 +178,7 @@ All settings live in `.env` (see [`.env.example`](.env.example)):
 | Variable | Purpose | Default |
 |---|---|---|
 | `GOOGLE_API_KEY` | Gemini API key (required) | — |
-| `GEMINI_MODEL` | Model for all agents | `gemini-flash-latest` |
+| `GEMINI_MODEL` | Model for all agents | `gemini-2.5-flash` |
 | `TAVILY_API_KEY` / `SERPER_API_KEY` / `FIRECRAWL_API_KEY` | Live research providers | optional |
 | `MOCK_MODE` | Return mock data from external tools | `TRUE` |
 | `CACHE_TTL_HOURS` | Research result cache lifetime | `24` |

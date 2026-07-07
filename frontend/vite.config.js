@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       // React dev server forwards API calls to the FastAPI backend
-      '/api': 'http://127.0.0.1:8102',
+      '/api': 'http://127.0.0.1:8121',
     },
   },
 })
