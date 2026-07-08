@@ -1,14 +1,16 @@
 # Lead Qualification AI
 
-**Multi-agent AI system that researches, qualifies, scores, and prioritizes sales leads — so sales teams spend their time selling, not googling.**
+**Multi-agent AI system that researches, qualifies, scores, and prioritizes sales leads — so sales teams spend their time selling, not researching.**
 
 Capstone project for the **Google 5-Day AI Agents Intensive 2026** — Track: *Agents for Business*.
+
 
 
 
 ## Problem Statement
 
 Sales teams waste hours manually researching every inbound lead: who are they, what does their company do, are they even a fit? Most of that effort is spent on leads that were never worth pursuing. The result is slow follow-up, inconsistent qualification, and missed hot opportunities.
+
 
 ## Solution Approach
 
@@ -17,6 +19,7 @@ A pipeline of specialized AI agents (built on Google's [Agent Development Kit](h
 1. **Research Agent** — pulls the lead from the CRM and researches the company via web search (Tavily/Serper) and website analysis (Firecrawl), through an MCP server.
 2. **Qualification Agent** — evaluates fit against a qualification rubric, computes a deterministic lead score, and assigns a tier: **Hot / Warm / Cold** — with the reasoning explained.
 3. **Outreach Agent** — generates a prioritized recommendation, a full report, and a personalized follow-up email draft — which is **never sent without human approval**.
+   
 
 ## Architecture
 
@@ -51,9 +54,12 @@ Research Agent  →  Qualification Agent  →  Outreach Agent
    (CRM+web)          (score+tier)          (recommendation+draft email)
 ```
 
+<<<<<<< HEAD
 ### Architecture Workflow Image
 
 ![LeadPilot AI multi-agent workflow](docs/images/leadpilot-architecture.png)
+=======
+>>>>>>> 4562a2a3765b088cc775a6ab472661b6fe52d630
 
 ## Course Concepts Demonstrated
 
@@ -121,6 +127,7 @@ scripts\run_mcp_server.bat
 ```
 
 
+
 | Tool | Purpose |
 |---|---|
 | `crm_lookup` | Read-only CRM search by ID, name, or company |
@@ -132,15 +139,11 @@ scripts\run_mcp_server.bat
 
 > The MCP server does not expose a direct `send_email` tool. In the dashboard API, `/api/leads/{id}/email` can send via Gmail **only after human approval** and only when Gmail delivery is configured.
 
-Alternative: `uv run adk web . --port 8000` opens the raw ADK developer playground.
 
-> **Note:** `MOCK_MODE=TRUE` by default — external research APIs return mock data so you never burn credits during development. For **real-time research**, set in `.env`:
-> ```
-> MOCK_MODE=FALSE
-> TAVILY_API_KEY=tvly-...
-> FIRECRAWL_API_KEY=fc-...
-> ```
+
+
 > CRM sample leads use placeholder `example.com` URLs — live mode **discovers the real company website** via Tavily, then scrapes it with Firecrawl. See [MASTER.md](MASTER.md) for the full API-budget protection design.
+
 
 ## Project Structure
 
@@ -166,6 +169,7 @@ lead-qualification-ai/
 └── evaluation/          # ADK eval (agent behavior)
 ```
 
+
 ## Configuration
 
 All settings live in `.env` (see [`.env.example`](.env.example)):
@@ -183,9 +187,11 @@ All settings live in `.env` (see [`.env.example`](.env.example)):
 | `GMAIL_DEMO_TO_EMAIL` | Demo inbox recipient for all approved sends | — |
 | `GMAIL_CREDENTIALS_FILE` / `GMAIL_TOKEN_FILE` | Gmail OAuth files | `secrets/...` |
 
+
+
 ### Real email send (dashboard approve button)
 
-The **Approve & send** button can send a real email through Gmail API, routed to your demo inbox.
+The **Approve & send** button can send a real email through Gmail API.
 
 1. Put Google OAuth client JSON at `secrets/gmail_credentials.json`
 2. Run:
@@ -199,11 +205,14 @@ The **Approve & send** button can send a real email through Gmail API, routed to
    ```
 4. Restart backend and approve a draft from the lead detail page.
 
-### CRM data model (demo)
 
-`data/sample_leads.csv` stores **minimum fields only** — real company names (Stripe, Notion, HubSpot, Shopify) plus industry and a short CRM note. No fake websites, headcount, or contact details.
 
-**All detailed company intel** (overview, news, growth signals, tech stack, website scrape) is fetched at runtime by **Tavily + Firecrawl** when you click Research or run the qualify pipeline with `MOCK_MODE=FALSE`.
+### CRM data model 
+
+`data/sample_leads.csv` stores **minimum fields only** — real company names (Stripe, Notion, HubSpot, Shopify) . No fake websites, headcount, or contact details.
+
+**All detailed company intel** (overview, news, growth signals, tech stack, website scrape) is fetched at runtime by **Tavily + Firecrawl** when you click Research or run the qualify pipeline .
+
 
 ## Business Impact
 
