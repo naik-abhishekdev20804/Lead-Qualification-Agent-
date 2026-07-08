@@ -51,6 +51,10 @@ Research Agent  →  Qualification Agent  →  Outreach Agent
    (CRM+web)          (score+tier)          (recommendation+draft email)
 ```
 
+### Architecture Workflow Image
+
+![LeadPilot AI multi-agent workflow](docs/images/leadpilot-architecture.png)
+
 ## Course Concepts Demonstrated
 
 | Concept | Where |
