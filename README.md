@@ -130,12 +130,7 @@ scripts\run_mcp_server.bat
 
 Alternative: `uv run adk web . --port 8000` opens the raw ADK developer playground.
 
-> **Note:** `MOCK_MODE=TRUE` by default — external research APIs return mock data so you never burn credits during development. For **real-time research**, set in `.env`:
-> ```
-> MOCK_MODE=FALSE
-> TAVILY_API_KEY=tvly-...
-> FIRECRAWL_API_KEY=fc-...
-> ```
+
 > CRM sample leads use placeholder `example.com` URLs — live mode **discovers the real company website** via Tavily, then scrapes it with Firecrawl. See [MASTER.md](MASTER.md) for the full API-budget protection design.
 
 ## Project Structure
@@ -179,6 +174,7 @@ All settings live in `.env` (see [`.env.example`](.env.example)):
 | `GMAIL_DEMO_TO_EMAIL` | Demo inbox recipient for all approved sends | — |
 | `GMAIL_CREDENTIALS_FILE` / `GMAIL_TOKEN_FILE` | Gmail OAuth files | `secrets/...` |
 
+
 ### Real email send (dashboard approve button)
 
 The **Approve & send** button can send a real email through Gmail API, routed to your demo inbox.
@@ -195,11 +191,13 @@ The **Approve & send** button can send a real email through Gmail API, routed to
    ```
 4. Restart backend and approve a draft from the lead detail page.
 
-### CRM data model (demo)
 
-`data/sample_leads.csv` stores **minimum fields only** — real company names (Stripe, Notion, HubSpot, Shopify) plus industry and a short CRM note. No fake websites, headcount, or contact details.
 
-**All detailed company intel** (overview, news, growth signals, tech stack, website scrape) is fetched at runtime by **Tavily + Firecrawl** when you click Research or run the qualify pipeline with `MOCK_MODE=FALSE`.
+### CRM data model 
+
+`data/sample_leads.csv` stores **minimum fields only** — real company names (Stripe, Notion, HubSpot, Shopify) . No fake websites, headcount, or contact details.
+
+**All detailed company intel** (overview, news, growth signals, tech stack, website scrape) is fetched at runtime by **Tavily + Firecrawl** when you click Research or run the qualify pipeline .
 
 ## Business Impact
 
