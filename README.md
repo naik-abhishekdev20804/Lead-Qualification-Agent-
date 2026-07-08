@@ -1,6 +1,6 @@
 # Lead Qualification AI
 
-**Multi-agent AI system that researches, qualifies, scores, and prioritizes sales leads — so sales teams spend their time selling, not googling.**
+**Multi-agent AI system that researches, qualifies, scores, and prioritizes sales leads — so sales teams spend their time selling, not researching.**
 
 Capstone project for the **Google 5-Day AI Agents Intensive 2026** — Track: *Agents for Business*.
 
