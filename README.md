@@ -1,8 +1,10 @@
 # Lead Qualification AI
 
+
 **Multi-agent AI system that researches, qualifies, scores, and prioritizes sales leads — so sales teams spend their time selling, not researching.**
 
 Capstone project for the **Google 5-Day AI Agents Intensive 2026** — Track: *Agents for Business*.
+
 
 
 
@@ -12,6 +14,8 @@ Capstone project for the **Google 5-Day AI Agents Intensive 2026** — Track: *A
 Sales teams waste hours manually researching every inbound lead: who are they, what does their company do, are they even a fit? Most of that effort is spent on leads that were never worth pursuing. The result is slow follow-up, inconsistent qualification, and missed hot opportunities.
 
 
+
+
 ## Solution Approach
 
 A pipeline of specialized AI agents (built on Google's [Agent Development Kit](https://adk.dev/)) that does the whole job automatically:
@@ -19,6 +23,7 @@ A pipeline of specialized AI agents (built on Google's [Agent Development Kit](h
 1. **Research Agent** — pulls the lead from the CRM and researches the company via web search (Tavily/Serper) and website analysis (Firecrawl), through an MCP server.
 2. **Qualification Agent** — evaluates fit against a qualification rubric, computes a deterministic lead score, and assigns a tier: **Hot / Warm / Cold** — with the reasoning explained.
 3. **Outreach Agent** — generates a prioritized recommendation, a full report, and a personalized follow-up email draft — which is **never sent without human approval**.
+
    
 
 ## Architecture
