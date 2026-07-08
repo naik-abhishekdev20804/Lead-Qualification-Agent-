@@ -35,3 +35,10 @@ Thumbs.db
 # Frontend (added later)
 node_modules/
 frontend/dist/
+
+# Local demo/mock artifacts
+data/mock_data/
+data/mock_data.json
+
+# Cursor IDE + MCP local config
+.cursor/

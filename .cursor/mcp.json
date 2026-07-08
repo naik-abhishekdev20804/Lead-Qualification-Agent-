@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "leadpilot": {
-      "command": "C:\\Users\\naikh\\Desktop\\Lead Selection Agent\\scripts\\run_mcp_server.bat",
-      "args": []
-    }
-  }
-}
